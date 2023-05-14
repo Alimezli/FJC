@@ -2,7 +2,8 @@ import datetime
 
 from fastapi import FastAPI
 from pymongo import MongoClient
-
+from starlette.middleware.cors import CORSMiddleware
+from FJC import ReturnNews
 client = MongoClient('mongodb://localhost:27017/')
 UserDB = client['User']
 NewsDB = client['News']
@@ -21,10 +22,18 @@ CreditCLN = CreditDB['CreditCollection']
 
 app = FastAPI()
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 #this funtion will return the index of top 10 newest news.
 @app.get("/")
 async def index():
-    return {}
+    return ReturnNews.FirstPage()
 
 
 @app.get("/hello/{name}")
