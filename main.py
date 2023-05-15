@@ -75,3 +75,7 @@ def change_password(Password: ChangePasswordSchema, token: str = Depends(jwtBear
         return Auth.Change_Password(Password.CurrentPassword, Password.NewPassword, userID)
     else:
         return {"ERR": "Token Not valid."}
+
+@app.get('/search/{query}')
+async def search(query:str):
+    return ReturnNews.search(query)

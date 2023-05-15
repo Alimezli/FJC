@@ -1,5 +1,5 @@
-#import json
-from pymongo import MongoClient , DESCENDING
+# import json
+from pymongo import MongoClient, DESCENDING
 from datetime import datetime, timedelta
 
 client = MongoClient('mongodb://localhost:27017/')
@@ -11,16 +11,18 @@ EditorCLN = UserDB['EditorCollection']
 NewsCLN = NewsDB['NewsCollection']
 CreditCLN = CreditDB['CreditCollection']
 
+
 def FirstPage():
     jsn = {}
     filter_query = {'Visibility': True}
     top_10_news = NewsCLN.find(filter_query).sort("Date", DESCENDING).limit(10)
     i = 0
     for new in top_10_news:
-
-        jsn[i] = {'title' : new['Title'], 'subject': new['Subject'],'date': new['Date'], 'picture':new['Picture'],'text':new['Text']}
+        jsn[i] = {'title': new['Title'], 'subject': new['Subject'], 'date': new['Date'], 'picture': new['Picture'],
+                  'text': new['Text']}
         i += 1
     return jsn
+
 
 def DayMessage():
     today = datetime.utcnow()
@@ -31,4 +33,19 @@ def DayMessage():
     if results:
         return results
     else:
-        return {"msg":"هیچ رویدادی وجود ندارد."}
+        return {"msg": "هیچ رویدادی وجود ندارد."}
+
+
+def search(query):
+    jsn = {}
+    filter_query = {'Visibility': True, 'Text': {'$regex': query}}
+    results = NewsCLN.find(filter_query).sort('Date', DESCENDING).limit(5)
+    i = 0
+    for new in results:
+        jsn[i] = {'title': new['Title'], 'subject': new['Subject'], 'date': new['Date'], 'picture': new['Picture'],
+                  'text': new['Text']}
+        i += 1
+    if jsn:
+        return jsn
+    else:
+        return {"msg":"متاسفانه چیری یافت نشد."}
