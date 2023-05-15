@@ -1,5 +1,6 @@
 #import json
 from pymongo import MongoClient , DESCENDING
+from datetime import datetime, timedelta
 
 client = MongoClient('mongodb://localhost:27017/')
 UserDB = client['User']
@@ -20,3 +21,14 @@ def FirstPage():
         jsn[i] = {'title' : new['Title'], 'subject': new['Subject'],'date': new['Date'], 'picture':new['Picture'],'text':new['Text']}
         i += 1
     return jsn
+
+def DayMessage():
+    today = datetime.utcnow()
+    start_of_day = datetime(today.year, today.month, today.day)
+    end_of_day = start_of_day + timedelta(days=1)
+    filter_query = {'visibility': True, 'Date': {'$gte': start_of_day, '$lt': end_of_day}}
+    results = NewsCLN.find(filter_query)
+    if results:
+        return results
+    else:
+        return {"msg":"هیچ رویدادی وجود ندارد."}
