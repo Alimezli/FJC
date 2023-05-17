@@ -49,3 +49,20 @@ def search(query):
         return jsn
     else:
         return {"msg":"متاسفانه چیری یافت نشد."}
+
+
+def ReturnAllNews():
+    jsn = {}
+    results = NewsCLN.find()
+    i = 0
+    for new in results:
+        status = ''
+        if new['Verify'] == True and new['Visibility'] == True:
+            status = 'active'
+        elif new['Verify'] == False:
+            status = 'verifying'
+        else:
+            status = 'disable'
+        reporter = USRCLN.find({'UserID':new['ReporteID']})['name']
+        jsn[i] = {'title': new['Title'],'reporter' : reporter, 'subject': new['Subject'], 'date': new['Date']}
+        i += 1
