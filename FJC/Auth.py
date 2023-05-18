@@ -22,7 +22,7 @@ def user_signup(user: UserSchema = Body(default=None)):
         return {"ERR": "this email aleardy exist"}
     elif user.access == "admin":
         return {"ERR": "You don't have premission to do this."}
-    user.userID = int(USRCLN.count_documents({})) + 1
+    user.userID = int(USRCLN.count_documents({})) + 7
     userJson = json.loads(user.json())
     USRCLN.insert_one(userJson)
     signJWT(user.userID, user.access)
@@ -57,7 +57,6 @@ def User_Forget(email):
             resetsCLN.update_one({"userID": usr['userID']}, {"$set": {"Token": Token, "expires": expires}})
         else:
             resetsCLN.insert_one({"userID": usr['userID'], "Token": Token, "expires": expires})
-        print(Token)
         return {"msg": "reset link sent"}
     else:
         return {"ERR": "user not found"}

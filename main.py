@@ -82,6 +82,7 @@ async def search(query: str):
     return ReturnNews.search(query)
 
 
-@app.get('/Allnews')
-async def Allnews():
-    return ReturnNews.ReturnAllNews()
+@app.get('/ReturnNews', dependencies=[Depends(jwtBearer()), ], tags=["Admin"])
+async def Allnews(token: str = Depends(jwtBearer())):
+    return ReturnNews.ReturnNews(token)
+
