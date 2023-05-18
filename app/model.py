@@ -44,3 +44,9 @@ class ChangePasswordSchema(BaseModel):
             "CurrentPassword ": "123456",
             "NewPassword" : "654321"
         }
+
+class NewsSchema(BaseModel):
+    Subject : str = Field(default=None)
+    Abstract : str = Field(default=None)
+    Text : str = Field(default=None)
+    PicPath : str = Field(default=None)

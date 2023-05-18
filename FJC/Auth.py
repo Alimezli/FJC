@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from fastapi import FastAPI, Body, Depends
+from fastapi import Body
 from app.model import UserEmailLoginSchema, UserSchema, EmailForgetSchema, ChangePasswordSchema
 from app.auth.jwt_handler import signJWT, get_username_from_jwt
 from app.auth.jwt_bearer import jwtBearer
@@ -17,11 +17,8 @@ CreditCLN = CreditDB['CreditCollection']
 
 
 def user_signup(user: UserSchema = Body(default=None)):
-    ValidUser = USRCLN.find_one({"username": user.userID})
     ValidEmail = USRCLN.find_one({"email": user.email})
-    if ValidUser:
-        return {"ERR": "this username aleardy exist"}
-    elif ValidEmail:
+    if ValidEmail:
         return {"ERR": "this email aleardy exist"}
     elif user.access == "admin":
         return {"ERR": "You don't have premission to do this."}
@@ -48,6 +45,7 @@ def User_EmailLogin(user: UserEmailLoginSchema = Body(default=None)):
         return signJWT(usr["userID"], access)
     else:
         return {"ERR": "email or password invalid!!"}
+
 
 def User_Forget(email):
     usr = USRCLN.find_one({"email": email})
@@ -84,11 +82,12 @@ def Reset_Password(Token, New_Password, re_enter):
     else:
         return {"ERR": "invalid token"}
 
+
 def Change_Password(CurrentPassword, NewPassword, userID):
     usr = USRCLN.find_one({"userID": userID})
     if CurrentPassword == usr['password']:
         if CurrentPassword == NewPassword:
-            return {'ERR':"you can't change password to your current password."}
+            return {'ERR': "you can't change password to your current password."}
         elif len(NewPassword) >= 8:
             USRCLN.update_one({"userID": usr['userID']}, {"$set": {"password": NewPassword}})
             return {"msg": "password successfuly changed."}

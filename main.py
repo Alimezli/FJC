@@ -65,6 +65,7 @@ def reset_pass(Token: str = Body(default=None), password: str = Body(default=Non
     print(Token)
     return Auth.Reset_Password(Token, password, password)
 
+
 @app.post('/user/ChangePassword', dependencies=[Depends(jwtBearer()), ], tags=["user"])
 def change_password(Password: ChangePasswordSchema, token: str = Depends(jwtBearer())):
     user = get_username_from_jwt(token)
@@ -75,6 +76,12 @@ def change_password(Password: ChangePasswordSchema, token: str = Depends(jwtBear
     else:
         return {"ERR": "Token Not valid."}
 
+
 @app.get('/search/{query}')
-async def search(query:str):
+async def search(query: str):
     return ReturnNews.search(query)
+
+
+@app.get('/Allnews')
+async def Allnews():
+    return ReturnNews.ReturnAllNews()

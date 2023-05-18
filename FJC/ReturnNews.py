@@ -1,6 +1,10 @@
 # import json
+from fastapi import Body
 from pymongo import MongoClient, DESCENDING
 from datetime import datetime, timedelta
+from app.model import NewsSchema
+from app.auth.jwt_handler import get_username_from_jwt
+from . import NLP
 
 client = MongoClient('mongodb://localhost:27017/')
 UserDB = client['User']
@@ -48,7 +52,7 @@ def search(query):
     if jsn:
         return jsn
     else:
-        return {"msg":"متاسفانه چیری یافت نشد."}
+        return {"msg": "متاسفانه چیری یافت نشد."}
 
 
 def ReturnAllNews():
@@ -57,12 +61,37 @@ def ReturnAllNews():
     i = 0
     for new in results:
         status = ''
-        if new['Verify'] == True and new['Visibility'] == True:
+        if new['Verified'] and new['Visibility']:
             status = 'active'
-        elif new['Verify'] == False:
+        elif not new['Verified']:
             status = 'verifying'
         else:
-            status = 'disable'
-        reporter = USRCLN.find({'UserID':new['ReporteID']})['name']
-        jsn[i] = {'title': new['Title'],'reporter' : reporter, 'subject': new['Subject'], 'date': new['Date']}
+            status = 'inactive'
+        reporter = USRCLN.find_one({'userID': new['ReporterID']})
+        reporter = reporter['name']
+        jsn[i] = {'title': new['Title'], 'reporter': reporter, 'subject': new['Subject'], 'date': new['Date'],
+                  'status': status}
         i += 1
+    return jsn
+
+
+def AddNew(Token, new: NewsSchema = Body(default=None)):
+    NewID = int(USRCLN.count_documents({})) + 1
+    user = get_username_from_jwt(Token)
+    Topic = NLP.TopicModeling(new.Text)
+    Topics = {'cultur': 'Cultur', 'economy': 'Economy', 'education': 'Education', 'politics': 'Politic',
+              'sport': 'Sport'}
+    Topic = Topics[Topic]
+    EditorID = EditorCLN.find_one({'Title': Topic})
+    NewsCLN.insert_one({'NewsID': NewID, 'ReporterID': user, 'EditorID': EditorID, 'Date': datetime.datetime.now(),
+                        'Subject': new.Subject, 'Text': new.Text, 'Title': Topic, 'Picture': new.PicPath, 'Tags': [''],
+                        'Verified': False, 'Visibility': False})
+def SetVisibility(Token,NewID,visibility):
+    userID = get_username_from_jwt(Token)
+    user = USRCLN.find_one({"userID":userID})
+    if user['access'] == 'Admin' or user['access'] == 'Editor':
+        new = NewsCLN.find_one({"NewID":NewID})
+        NewsCLN.update_one({"NewID":NewID},{"$set": {"Visibility": visibility}})
+        return {'msg':'message set visible'}
+    else:
+        return {'msg': 'message set visible'}
