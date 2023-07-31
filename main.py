@@ -1,11 +1,11 @@
 import datetime
 from app.auth.jwt_bearer import jwtBearer
 from app.auth.jwt_handler import get_username_from_jwt
-from app.model import UserEmailLoginSchema, UserSchema, ChangePasswordSchema, EmailForgetSchema
+from app.model import UserEmailLoginSchema, UserSchema, ChangePasswordSchema, EmailForgetSchema, NewsSchema
 from fastapi import FastAPI, Body, Depends
 from pymongo import MongoClient
 from starlette.middleware.cors import CORSMiddleware
-from FJC import ReturnNews, Auth
+from FJC import ReturnNews, Auth, Editor
 
 client = MongoClient('mongodb://localhost:27017/')
 UserDB = client['User']
@@ -15,13 +15,6 @@ USRCLN = UserDB['USRCollection']
 EditorCLN = UserDB['EditorCollection']
 NewsCLN = NewsDB['NewsCollection']
 CreditCLN = CreditDB['CreditCollection']
-
-# USRCLN.insert_one({'userID':2,'name':'ali','access':'Editor','email':'mmd@mmd.ir','password':'123456','credit':555})
-# collection.insert_one({'CreditID':2, 'NewsID':3 ,'date':datetime.datetime.now(),'from':'economic','to':12,'Info':'dash karet ali bood!'})
-# collection.insert_one({'NewsID':2,'Title':'hi','date':datetime.datetime.now(),'Subject':'economic','PicUrl':'pics/2.jpg','Text':'hi bro','tags':['economic','blah blah']})
-
-# NewsCLN.insert_one({'NewsID': i,'ReporteID': 10 ,'EditorID': 2 ,'Date':datetime.datetime.now(),'Subject':'President','Text':'President is alive.','Picture':'data/pic1.jpg','Verified':False,'Visibility':False})
-# EditorCLN.insert_one({'UserID':2,'Title':'economic'})
 
 app = FastAPI()
 
@@ -77,12 +70,81 @@ def change_password(Password: ChangePasswordSchema, token: str = Depends(jwtBear
         return {"ERR": "Token Not valid."}
 
 
-@app.get('/search/{query}')
+@app.get('/News/search/{query}')
 async def search(query: str):
     return ReturnNews.search(query)
 
 
-@app.get('/ReturnNews', dependencies=[Depends(jwtBearer()), ], tags=["Admin"])
+@app.post('/News/AddNew', dependencies=[Depends(jwtBearer()), ], tags=["News"])
+async def AddNews(new: NewsSchema, token: str = Depends(jwtBearer())):
+    return ReturnNews.AddNew(token, new)
+
+@app.get('/News/GetNew', dependencies=[Depends(jwtBearer()), ], tags=["News"])
+async def GetNews(NewID:int):
+    return ReturnNews.GetNew(NewID)
+
+
+@app.get('/News/SetStatus', dependencies=[Depends(jwtBearer()), ], tags=["News", "Admin", "Editor"])
+async def SetStatus(NewID: int, Visibility: bool, token: str = Depends(jwtBearer())):
+    ReturnNews.SetVerified(token, NewID, Visibility)
+    return ReturnNews.SetVisibility(token, NewID, Visibility)
+
+
+@app.post('/News/ReturnNews', dependencies=[Depends(jwtBearer()), ], tags=["Admin"])
 async def Allnews(token: str = Depends(jwtBearer())):
     return ReturnNews.ReturnNews(token)
 
+
+@app.get('/Admin/class/1', dependencies=[Depends(jwtBearer()), ], tags=["Admin"])
+async def AdminStatus(token: str = Depends(jwtBearer())):
+    user = get_username_from_jwt(token)
+    userID = user['userID']
+    if USRCLN.find_one({"UserID": userID})['access'] == 'Admin':
+        Reporter = USRCLN.count_documents({'access': 'Reporter'})
+        News = NewsCLN.count_documents({})
+        View = 10
+        return {'ReporterCount': Reporter, 'NewsCount': News, 'Veiw': View}
+    else:
+        return {"ERR": "Access Denied"}
+
+
+@app.get('/Admin/class/2', dependencies=[Depends(jwtBearer()), ], tags=["Admin"])
+async def AdminStatus(token: str = Depends(jwtBearer())):
+    user = get_username_from_jwt(token)
+    userID = user['userID']
+    if USRCLN.find_one({"UserID": userID})['access'] == 'Admin':
+        Cultur = ReturnNews.CountCategories('Cultur')
+        Economy = ReturnNews.CountCategories('Economy')
+        Education = ReturnNews.CountCategories('Education')
+        Politic = ReturnNews.CountCategories('Politic')
+        Sport = ReturnNews.CountCategories('Sport')
+        CulturEditor = Editor.EditorCount('Cultur')
+        EconomyEditor = Editor.EditorCount('Economy')
+        EducationEditor = Editor.EditorCount('Education')
+        PoliticEditor = Editor.EditorCount('Politic')
+        SportEditor = Editor.EditorCount('Sport')
+        Reporter = USRCLN.count_documents({'access': 'Reporter'})
+
+        return {'CulturNews': Cultur, "EconomyNews": Economy, "EducationNews": Education, 'PoliticNews': Politic,
+                "SportNews": Sport, "CulturEditor": CulturEditor, 'EconomyEditor': EconomyEditor,
+                'EducationEditor': EducationEditor, 'PoliticEditor': PoliticEditor, 'SportEditor': SportEditor,
+                'Reporter': Reporter}
+    else:
+        return {"ERR": "Access Denied"}
+
+
+@app.get('/Editor/Class/1', dependencies=[Depends(jwtBearer()), ], tags=["Editor"])
+async def EditorStatus(token: str = Depends(jwtBearer())):
+    user = get_username_from_jwt(token)
+    userID = user['userID']
+    Reporter = USRCLN.count_documents({'access': 'Reporter'})
+    News = NewsCLN.count_documents({})
+    View = 10
+    return {'ReporterCount': Reporter, 'NewsCount': News, 'Veiw': View}
+
+
+@app.get('/Editor/Class/2', dependencies=[Depends(jwtBearer()), ], tags=["Editor"])
+async def EditorStatus(token: str = Depends(jwtBearer())):
+    user = get_username_from_jwt(token)
+    userID = user['userID']
+    return Editor.EditorStatus(userID)

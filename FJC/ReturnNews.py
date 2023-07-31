@@ -4,6 +4,7 @@ from pymongo import MongoClient, DESCENDING
 from datetime import datetime, timedelta
 from app.model import NewsSchema
 from app.auth.jwt_handler import get_username_from_jwt
+import NLP
 
 # from . import NLP
 
@@ -90,7 +91,7 @@ def AddNew(Token, new: NewsSchema = Body(default=None)):
     NewID = int(USRCLN.count_documents({})) + 1
     userID = get_username_from_jwt(Token)
     userID = userID['userID']
-    Topic = 'NLP.TopicModeling(new.Text)'
+    Topic = NLP.TopicModeling(new.Text)
     Topics = {'cultur': 'Cultur', 'economy': 'Economy', 'education': 'Education', 'politics': 'Politic',
               'sport': 'Sport'}
     Topic = Topics[Topic]
@@ -98,6 +99,14 @@ def AddNew(Token, new: NewsSchema = Body(default=None)):
     NewsCLN.insert_one({'NewsID': NewID, 'ReporterID': userID, 'EditorID': EditorID, 'Date': datetime.datetime.now(),
                         'Subject': new.Subject, 'Text': new.Text, 'Title': Topic, 'Picture': new.PicPath, 'Tags': [''],
                         'Verified': False, 'Visibility': False})
+    return {"msg": "add new successful!!"}
+
+
+def GetNew(NewID):
+    new = NewsCLN.find_one({"NewsID": NewID})
+    return {'NewsID': new['NewsID'], 'ReporterID': new['ReporterID'], 'EditorID': new['EditorID'], 'Date': new['Date'],
+            'Subject': new['Subject'], 'Text': new['Text'], 'Title': new["Title"], 'Picture': new['Picture'],
+            'Tags': new['Tags'], 'Verified': new['Verified'], 'Visibility': new['Visibility']}
 
 
 def SetVisibility(Token, NewID, visibility):
@@ -106,7 +115,8 @@ def SetVisibility(Token, NewID, visibility):
     user = USRCLN.find_one({"userID": userID})
     Editor = EditorCLN.find_one({'UserID': userID})
     new = NewsCLN.find_one({"NewID": NewID})
-    if user['access'] == 'Admin' or (user['access'] == 'Editor' and new['Title'] == Editor['Title']):
+    if user['access'] == 'Admin' or new[
+        'EditorID'] == userID:  # (user['access'] == 'Editor' and new['Title'] == Editor['Title']):
         NewsCLN.update_one({"NewID": NewID}, {"$set": {"Visibility": visibility}})
         return {'msg': 'message set visible'}
     else:
@@ -119,7 +129,7 @@ def SetVerified(Token, NewID, verified):
     user = USRCLN.find_one({"userID": userID})
     Editor = EditorCLN.find_one({'UserID': userID})
     new = NewsCLN.find_one({"NewID": NewID})
-    if user['access'] == 'Admin' or (user['access'] == 'Editor' and new['Title'] == Editor['Title']):
+    if user['access'] == 'Admin' or new['EditorID'] == userID:
         NewsCLN.update_one({"NewID": NewID}, {"$set": {"Verified": verified}})
         Reporter = USRCLN.find_one({'userID': new['ReporterID']})
         return {'msg': 'message set verifieed'}
@@ -134,3 +144,7 @@ def NewsStatus(new):
         return 'verifying'
     else:
         return 'inactive'
+
+
+def CountCategories(Category):
+    return NewsCLN.count_documents({"Title": Category})
