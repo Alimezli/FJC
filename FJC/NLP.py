@@ -30,3 +30,6 @@ def TopicModeling(Text):
         return Topic
     else:
         return 'Short Text'
+
+def ReturnTags(Text):
+    return ['#خبر','#فوری']

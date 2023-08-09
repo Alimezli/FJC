@@ -5,7 +5,7 @@ from app.model import UserEmailLoginSchema, UserSchema, ChangePasswordSchema, Em
 from fastapi import FastAPI, Body, Depends
 from pymongo import MongoClient
 from starlette.middleware.cors import CORSMiddleware
-from FJC import ReturnNews, Auth, Editor
+from FJC import ReturnNews, Auth, Editor, NLP
 
 client = MongoClient('mongodb://localhost:27017/')
 UserDB = client['User']
@@ -82,6 +82,10 @@ async def AddNews(new: NewsSchema, token: str = Depends(jwtBearer())):
 @app.get('/News/GetNew', dependencies=[Depends(jwtBearer()), ], tags=["News"])
 async def GetNews(NewID:int):
     return ReturnNews.GetNew(NewID)
+
+@app.get('/News/َAutoDetect', dependencies=[Depends(jwtBearer()), ], tags=["News"])
+async def GetNews(text:str):
+    return {'title':NLP.TopicModeling(text),'tags':NLP.ReturnTags(text)}
 
 
 @app.get('/News/SetStatus', dependencies=[Depends(jwtBearer()), ], tags=["News", "Admin", "Editor"])
