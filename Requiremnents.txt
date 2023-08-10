@@ -8,3 +8,4 @@ pydantic
 pymongo
 fastapi
 python-decouple
+pyjwt
