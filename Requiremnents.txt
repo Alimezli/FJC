@@ -1,0 +1,10 @@
+hazm
+seaborn
+numpy
+pandas
+nltk
+scikit-learn
+pydantic
+pymongo
+fastapi
+python-decouple
