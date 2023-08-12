@@ -4,9 +4,9 @@ from pymongo import MongoClient, DESCENDING
 from datetime import datetime, timedelta
 from app.model import NewsSchema
 from app.auth.jwt_handler import get_username_from_jwt
-import NLP
+# import NLP
 
-# from . import NLP
+from . import NLP
 
 client = MongoClient('mongodb://localhost:27017/')
 UserDB = client['User']
@@ -95,18 +95,22 @@ def AddNew(Token, new: NewsSchema = Body(default=None)):
     Topics = {'cultur': 'Cultur', 'economy': 'Economy', 'education': 'Education', 'politics': 'Politic',
               'sport': 'Sport'}
     Topic = Topics[Topic]
+    Tags = NLP.ReturnTags(new.Text)
     EditorID = EditorCLN.find_one({'Title': Topic})
-    NewsCLN.insert_one({'NewsID': NewID, 'ReporterID': userID, 'EditorID': EditorID, 'Date': datetime.datetime.now(),
-                        'Subject': new.Subject, 'Text': new.Text, 'Title': Topic, 'Picture': new.PicPath, 'Tags': [''],
+    NewsCLN.insert_one({'NewsID': NewID, 'ReporterID': userID, 'EditorID': EditorID, 'Date': datetime.now(),
+                        'Subject': new.Subject, 'Text': new.Text, 'Title': Topic, 'Picture': new.PicPath, 'Tags': Tags,
                         'Verified': False, 'Visibility': False})
-    return {"msg": "add new successful!!"}
+    return {"msg": "add new successful!!", "topic": Topic, "Tags": Tags}
 
 
 def GetNew(NewID):
     new = NewsCLN.find_one({"NewsID": NewID})
-    return {'NewsID': new['NewsID'], 'ReporterID': new['ReporterID'], 'EditorID': new['EditorID'], 'Date': new['Date'],
+    if new:
+        return {'NewsID': new['NewsID'], 'ReporterID': new['ReporterID'], 'EditorID': new['EditorID'], 'Date': new['Date'],
             'Subject': new['Subject'], 'Text': new['Text'], 'Title': new["Title"], 'Picture': new['Picture'],
             'Tags': new['Tags'], 'Verified': new['Verified'], 'Visibility': new['Visibility']}
+    else:
+        return {}
 
 
 def SetVisibility(Token, NewID, visibility):
@@ -114,25 +118,23 @@ def SetVisibility(Token, NewID, visibility):
     userID = userID['userID']
     user = USRCLN.find_one({"userID": userID})
     Editor = EditorCLN.find_one({'UserID': userID})
-    new = NewsCLN.find_one({"NewID": NewID})
-    if user['access'] == 'Admin' or new[
-        'EditorID'] == userID:  # (user['access'] == 'Editor' and new['Title'] == Editor['Title']):
+    new = NewsCLN.find_one({"NewsID": NewID})
+    if user['access'] == 'Admin' or new['EditorID'] == userID:
         NewsCLN.update_one({"NewID": NewID}, {"$set": {"Visibility": visibility}})
-        return {'msg': 'message set visible'}
+        return {'msg': 'message visibility set'}
     else:
         return {'ERR': 'Access Denied!!'}
 
 
 def SetVerified(Token, NewID, verified):
-    userID = get_username_from_jwt(Token)
-    userID = userID['userID']
+    user = get_username_from_jwt(Token)
+    userID = user['userID']
     user = USRCLN.find_one({"userID": userID})
-    Editor = EditorCLN.find_one({'UserID': userID})
-    new = NewsCLN.find_one({"NewID": NewID})
+    new = NewsCLN.find_one({"NewsID": NewID})
     if user['access'] == 'Admin' or new['EditorID'] == userID:
         NewsCLN.update_one({"NewID": NewID}, {"$set": {"Verified": verified}})
         Reporter = USRCLN.find_one({'userID': new['ReporterID']})
-        return {'msg': 'message set verifieed'}
+        return {'msg': 'message set verified'}
     else:
         return {'ERR': 'Access denied!!'}
 
@@ -148,3 +150,4 @@ def NewsStatus(new):
 
 def CountCategories(Category):
     return NewsCLN.count_documents({"Title": Category})
+

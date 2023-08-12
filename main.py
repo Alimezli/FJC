@@ -1,7 +1,8 @@
 import datetime
 from app.auth.jwt_bearer import jwtBearer
 from app.auth.jwt_handler import get_username_from_jwt
-from app.model import UserEmailLoginSchema, UserSchema, ChangePasswordSchema, EmailForgetSchema, NewsSchema
+from app.model import UserEmailLoginSchema, UserSchema, ChangePasswordSchema, EmailForgetSchema, NewsSchema, \
+    GetNewSchema, AutoDetectSchema, SetStatusSchema
 from fastapi import FastAPI, Body, Depends
 from pymongo import MongoClient
 from starlette.middleware.cors import CORSMiddleware
@@ -80,18 +81,18 @@ async def AddNews(new: NewsSchema, token: str = Depends(jwtBearer())):
     return ReturnNews.AddNew(token, new)
 
 @app.get('/News/GetNew', dependencies=[Depends(jwtBearer()), ], tags=["News"])
-async def GetNews(NewID:int):
-    return ReturnNews.GetNew(NewID)
+async def GetNews(New:GetNewSchema):
+    return ReturnNews.GetNew(New.NewID)
 
-@app.get('/News/َAutoDetect', dependencies=[Depends(jwtBearer()), ], tags=["News"])
-async def GetNews(text:str):
-    return {'title':NLP.TopicModeling(text),'tags':NLP.ReturnTags(text)}
+@app.post('/News/AutoDetect', dependencies=[Depends(jwtBearer()), ], tags=["News"])
+async def GetNews(text:AutoDetectSchema):
+    return {'title':NLP.TopicModeling(text.Text),'tags':NLP.ReturnTags(text.Text)}
 
 
 @app.get('/News/SetStatus', dependencies=[Depends(jwtBearer()), ], tags=["News", "Admin", "Editor"])
-async def SetStatus(NewID: int, Visibility: bool, token: str = Depends(jwtBearer())):
-    ReturnNews.SetVerified(token, NewID, Visibility)
-    return ReturnNews.SetVisibility(token, NewID, Visibility)
+async def SetStatus(New:SetStatusSchema, token: str = Depends(jwtBearer())):
+    ReturnNews.SetVerified(token, int(New.NewID), New.Visibility)
+    return ReturnNews.SetVisibility(token, int(New.NewID), New.Visibility)
 
 
 @app.post('/News/ReturnNews', dependencies=[Depends(jwtBearer()), ], tags=["Admin"])

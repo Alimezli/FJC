@@ -27,11 +27,11 @@ NP:
 ]
 normalizer = Normalizer()
 
-politics = pd.read_csv('../Data/Dataset/politics.csv')
-cultur = pd.read_csv('../Data/Dataset/cultur.csv')
-economy = pd.read_csv('../Data/Dataset/economy.csv')
-eduction = pd.read_csv('../Data/Dataset/education.csv')
-sport = pd.read_csv('../Data/Dataset/sport.csv')
+politics = pd.read_csv('./Data/Dataset/politics.csv')
+cultur = pd.read_csv('./Data/Dataset/cultur.csv')
+economy = pd.read_csv('./Data/Dataset/economy.csv')
+eduction = pd.read_csv('./Data/Dataset/education.csv')
+sport = pd.read_csv('./Data/Dataset/sport.csv')
 df = pd.concat([politics, cultur, economy, eduction, sport])
 from sklearn.linear_model import LogisticRegression
 from sklearn.naive_bayes import MultinomialNB
