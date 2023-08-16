@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from fastapi import Body
+from fastapi import Body, HTTPException
 from app.model import UserEmailLoginSchema, UserSchema, EmailForgetSchema, ChangePasswordSchema
 from app.auth.jwt_handler import signJWT, get_username_from_jwt
 from app.auth.jwt_bearer import jwtBearer
@@ -21,7 +21,8 @@ def user_signup(user: UserSchema = Body(default=None)):
     if ValidEmail:
         return {"ERR": "this email aleardy exist"}
     elif user.access == "admin":
-        return {"ERR": "You don't have premission to do this."}
+        raise HTTPException(status_code=403, detail="You do not have permission to access this resource.")
+        #return {"ERR": "You don't have premission to do this."}
     user.userID = int(USRCLN.count_documents({})) + 7
     userJson = json.loads(user.json())
     USRCLN.insert_one(userJson)

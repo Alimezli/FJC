@@ -1,3 +1,4 @@
+from fastapi import HTTPException
 from pymongo import MongoClient
 
 client = MongoClient('localhost', 27017)
@@ -18,7 +19,8 @@ def EditorStatus(userID):
         Visible = int(NewsCLN.count_documents({"EditorID": int(userID), "Visibility": True}))
         return {"Unvarified": Unvarified, "InVisible": InVisible, "Visible":Visible }
     else:
-        return {"ERR": "You are Not Editor."}
+        raise HTTPException(status_code=403, detail="You do not have permission to access this resource.")
+        #return {"ERR": "You are Not Editor."}
 
 def EditorCount(Title):
     return EditorCLN.count_documents({'Title': Title})

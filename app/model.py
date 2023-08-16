@@ -71,3 +71,6 @@ class AutoDetectSchema(BaseModel):
 class SetStatusSchema(BaseModel):
     NewID: int
     Visibility: bool
+
+class CheckNewsSchema(BaseModel):
+    Visibility: bool

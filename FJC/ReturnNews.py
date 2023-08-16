@@ -1,5 +1,5 @@
 # import json
-from fastapi import Body
+from fastapi import Body, HTTPException
 from pymongo import MongoClient, DESCENDING
 from datetime import datetime, timedelta
 from app.model import NewsSchema
@@ -84,7 +84,8 @@ def ReturnNews(Token):
             i += 1
         return jsn
     else:
-        return {"ERR": "Access denied"}
+        raise HTTPException(status_code=403, detail="You do not have permission to access this resource.")
+        #return {"ERR": "Access denied"}
 
 
 def AddNew(Token, new: NewsSchema = Body(default=None)):
@@ -96,8 +97,8 @@ def AddNew(Token, new: NewsSchema = Body(default=None)):
               'sport': 'Sport'}
     Topic = Topics[Topic]
     Tags = NLP.ReturnTags(new.Text)
-    EditorID = EditorCLN.find_one({'Title': Topic})
-    NewsCLN.insert_one({'NewsID': NewID, 'ReporterID': userID, 'EditorID': EditorID, 'Date': datetime.now(),
+    Editor = EditorCLN.find_one({'Title': Topic})
+    NewsCLN.insert_one({'NewsID': NewID, 'ReporterID': userID, 'EditorID': Editor["EditorID"], 'Date': datetime.now(),
                         'Subject': new.Subject, 'Text': new.Text, 'Title': Topic, 'Picture': new.PicPath, 'Tags': Tags,
                         'Verified': False, 'Visibility': False})
     return {"msg": "add new successful!!", "topic": Topic, "Tags": Tags}
@@ -106,9 +107,10 @@ def AddNew(Token, new: NewsSchema = Body(default=None)):
 def GetNew(NewID):
     new = NewsCLN.find_one({"NewsID": NewID})
     if new:
-        return {'NewsID': new['NewsID'], 'ReporterID': new['ReporterID'], 'EditorID': new['EditorID'], 'Date': new['Date'],
-            'Subject': new['Subject'], 'Text': new['Text'], 'Title': new["Title"], 'Picture': new['Picture'],
-            'Tags': new['Tags'], 'Verified': new['Verified'], 'Visibility': new['Visibility']}
+        return {'NewsID': new['NewsID'], 'ReporterID': new['ReporterID'], 'EditorID': new['EditorID'],
+                'Date': new['Date'],
+                'Subject': new['Subject'], 'Text': new['Text'], 'Title': new["Title"], 'Picture': new['Picture'],
+                'Tags': new['Tags'], 'Verified': new['Verified'], 'Visibility': new['Visibility']}
     else:
         return {}
 
@@ -123,7 +125,8 @@ def SetVisibility(Token, NewID, visibility):
         NewsCLN.update_one({"NewID": NewID}, {"$set": {"Visibility": visibility}})
         return {'msg': 'message visibility set'}
     else:
-        return {'ERR': 'Access Denied!!'}
+        raise HTTPException(status_code=403, detail="You do not have permission to access this resource.")
+        #return {'ERR': 'Access Denied!!'}
 
 
 def SetVerified(Token, NewID, verified):
@@ -136,7 +139,8 @@ def SetVerified(Token, NewID, verified):
         Reporter = USRCLN.find_one({'userID': new['ReporterID']})
         return {'msg': 'message set verified'}
     else:
-        return {'ERR': 'Access denied!!'}
+        raise HTTPException(status_code=403, detail="You do not have permission to access this resource.")
+        #return {'ERR': 'Access denied!!'}
 
 
 def NewsStatus(new):
@@ -148,6 +152,21 @@ def NewsStatus(new):
         return 'inactive'
 
 
+def CheckNews(UserID, Visibility):
+    Result = []
+    News = NewsCLN.find({"$or": [{"EditorID": UserID}, {"ReporterID": UserID}], "Visibility": Visibility})
+
+    for New in News:
+        n = {
+            "NewsID": New['NewsID'], "ReporterID": New["ReporterID"], "EditorID": New["EditorID"], "Date": New['Date'],
+            "Subject": New["Subject"],
+            "Text": New['Text'], "Title": New['Title'], "Picture": New["Picture"], "Tags": New["Tags"],
+            "Verified": New["Verified"], "Visibility": New['Visibility']
+        }
+        Result.append(n)
+
+    return Result
+
+
 def CountCategories(Category):
     return NewsCLN.count_documents({"Title": Category})
-

@@ -1,9 +1,12 @@
 import datetime
+
+import uvicorn
+
 from app.auth.jwt_bearer import jwtBearer
 from app.auth.jwt_handler import get_username_from_jwt
 from app.model import UserEmailLoginSchema, UserSchema, ChangePasswordSchema, EmailForgetSchema, NewsSchema, \
-    GetNewSchema, AutoDetectSchema, SetStatusSchema
-from fastapi import FastAPI, Body, Depends
+    GetNewSchema, AutoDetectSchema, SetStatusSchema, CheckNewsSchema
+from fastapi import FastAPI, Body, Depends, HTTPException
 from pymongo import MongoClient
 from starlette.middleware.cors import CORSMiddleware
 from FJC import ReturnNews, Auth, Editor, NLP
@@ -80,54 +83,57 @@ async def search(query: str):
 async def AddNews(new: NewsSchema, token: str = Depends(jwtBearer())):
     return ReturnNews.AddNew(token, new)
 
+
 @app.get('/News/GetNew', dependencies=[Depends(jwtBearer()), ], tags=["News"])
-async def GetNews(New:GetNewSchema):
+async def GetNews(New: GetNewSchema):
     return ReturnNews.GetNew(New.NewID)
 
+
 @app.post('/News/AutoDetect', dependencies=[Depends(jwtBearer()), ], tags=["News"])
-async def GetNews(text:AutoDetectSchema):
-    return {'title':NLP.TopicModeling(text.Text),'tags':NLP.ReturnTags(text.Text)}
+async def GetNews(text: AutoDetectSchema):
+    return {'title': NLP.TopicModeling(text.Text), 'tags': NLP.ReturnTags(text.Text)}
 
 
 @app.get('/News/SetStatus', dependencies=[Depends(jwtBearer()), ], tags=["News", "Admin", "Editor"])
-async def SetStatus(New:SetStatusSchema, token: str = Depends(jwtBearer())):
+async def SetStatus(New: SetStatusSchema, token: str = Depends(jwtBearer())):
     ReturnNews.SetVerified(token, int(New.NewID), New.Visibility)
     return ReturnNews.SetVisibility(token, int(New.NewID), New.Visibility)
 
 
-@app.post('/News/ReturnNews', dependencies=[Depends(jwtBearer()), ], tags=["Admin"])
+@app.get('/News/ReturnNews', dependencies=[Depends(jwtBearer()), ], tags=["Admin"])
 async def Allnews(token: str = Depends(jwtBearer())):
     return ReturnNews.ReturnNews(token)
 
 
-@app.get('/Admin/class/1', dependencies=[Depends(jwtBearer()), ], tags=["Admin"])
+@app.get('/Admin/Class/1', dependencies=[Depends(jwtBearer()), ], tags=["Admin"])
 async def AdminStatus(token: str = Depends(jwtBearer())):
     user = get_username_from_jwt(token)
-    userID = user['userID']
-    if USRCLN.find_one({"UserID": userID})['access'] == 'Admin':
+    userAccess = user['access']
+    if userAccess == 'Admin':
         Reporter = USRCLN.count_documents({'access': 'Reporter'})
         News = NewsCLN.count_documents({})
         View = 10
         return {'ReporterCount': Reporter, 'NewsCount': News, 'Veiw': View}
     else:
-        return {"ERR": "Access Denied"}
+        raise HTTPException(status_code=403, detail="You do not have permission to access this resource.")
+        #return {"ERR": "Access Denied"}
 
 
-@app.get('/Admin/class/2', dependencies=[Depends(jwtBearer()), ], tags=["Admin"])
+@app.get('/Admin/Class/2', dependencies=[Depends(jwtBearer()), ], tags=["Admin"])
 async def AdminStatus(token: str = Depends(jwtBearer())):
     user = get_username_from_jwt(token)
-    userID = user['userID']
-    if USRCLN.find_one({"UserID": userID})['access'] == 'Admin':
+    userAccess = user['access']
+    if userAccess == 'Admin':
         Cultur = ReturnNews.CountCategories('Cultur')
         Economy = ReturnNews.CountCategories('Economy')
         Education = ReturnNews.CountCategories('Education')
         Politic = ReturnNews.CountCategories('Politic')
-        Sport = ReturnNews.CountCategories('Sport')
+        Sport = ReturnNews.CountCategories('sport')  # Sport
         CulturEditor = Editor.EditorCount('Cultur')
         EconomyEditor = Editor.EditorCount('Economy')
         EducationEditor = Editor.EditorCount('Education')
         PoliticEditor = Editor.EditorCount('Politic')
-        SportEditor = Editor.EditorCount('Sport')
+        SportEditor = Editor.EditorCount('sport')  # Sport
         Reporter = USRCLN.count_documents({'access': 'Reporter'})
 
         return {'CulturNews': Cultur, "EconomyNews": Economy, "EducationNews": Education, 'PoliticNews': Politic,
@@ -135,7 +141,8 @@ async def AdminStatus(token: str = Depends(jwtBearer())):
                 'EducationEditor': EducationEditor, 'PoliticEditor': PoliticEditor, 'SportEditor': SportEditor,
                 'Reporter': Reporter}
     else:
-        return {"ERR": "Access Denied"}
+        raise HTTPException(status_code=403, detail="You do not have permission to access this resource.")
+        #return {"ERR": "Access Denied"}
 
 
 @app.get('/Editor/Class/1', dependencies=[Depends(jwtBearer()), ], tags=["Editor"])
@@ -153,3 +160,15 @@ async def EditorStatus(token: str = Depends(jwtBearer())):
     user = get_username_from_jwt(token)
     userID = user['userID']
     return Editor.EditorStatus(userID)
+
+
+@app.get('/News/Check', dependencies=[Depends(jwtBearer()), ], tags=["Editor"])
+async def CheckNews(param: CheckNewsSchema, token: str = Depends(jwtBearer())):
+    UserID = get_username_from_jwt(token)['userID']
+    Visibility = param.Visibility
+    print(UserID,Visibility)
+    return ReturnNews.CheckNews(UserID, Visibility)
+
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
