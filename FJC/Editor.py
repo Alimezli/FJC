@@ -13,10 +13,22 @@ CreditCLN = CreditDB['CreditCollection']
 
 def EditorStatus(userID):
     Editor = EditorCLN.find_one({'UserID': int(userID)})
-    if Editor:
+    admin = USRCLN.find_one({'userID': int(userID),'access':"Admin"})
+    user = USRCLN.find_one({'userID': int(userID)})
+    if admin:
+        Unvarified = int(NewsCLN.count_documents({ "Verified": False}))
+        InVisible = int(NewsCLN.count_documents({ "Visibility": False}))
+        Visible = int(NewsCLN.count_documents({"Visibility": True}))
+        return {"Unvarified": Unvarified, "InVisible": InVisible, "Visible":Visible }
+    elif Editor:
         Unvarified = int(NewsCLN.count_documents({"EditorID": int(userID), "Verified": False}))
         InVisible = int(NewsCLN.count_documents({"EditorID": int(userID), "Visibility": False}))
         Visible = int(NewsCLN.count_documents({"EditorID": int(userID), "Visibility": True}))
+        return {"Unvarified": Unvarified, "InVisible": InVisible, "Visible":Visible }
+    elif user:
+        Unvarified = int(NewsCLN.count_documents({"ReporterID": int(userID), "Verified": False}))
+        InVisible = int(NewsCLN.count_documents({"ReporterID": int(userID), "Visibility": False}))
+        Visible = int(NewsCLN.count_documents({"ReporterID": int(userID), "Visibility": True}))
         return {"Unvarified": Unvarified, "InVisible": InVisible, "Visible":Visible }
     else:
         raise HTTPException(status_code=403, detail="You do not have permission to access this resource.")

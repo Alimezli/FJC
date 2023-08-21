@@ -9,6 +9,7 @@ from app.model import UserEmailLoginSchema, UserSchema, ChangePasswordSchema, Em
 from fastapi import FastAPI, Body, Depends, HTTPException
 from pymongo import MongoClient
 from starlette.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from FJC import ReturnNews, Auth, Editor, NLP
 
 client = MongoClient('mongodb://localhost:27017/')
@@ -29,7 +30,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
+app.mount('/Data/Pictures', StaticFiles(directory="Data/Pictures"), name="static")
 
 # this funtion will return the index of top 10 newest news.
 @app.get("/")
@@ -83,18 +84,21 @@ async def search(query: str):
 async def AddNews(new: NewsSchema, token: str = Depends(jwtBearer())):
     return ReturnNews.AddNew(token, new)
 
+@app.post('/News/DelNew', dependencies=[Depends(jwtBearer()), ], tags=["News"])
+async def DelNews(New: GetNewSchema, token: str = Depends(jwtBearer())):
+    return ReturnNews.DelNew( New.NewID)
 
-@app.get('/News/GetNew', dependencies=[Depends(jwtBearer()), ], tags=["News"])
+@app.post('/News/GetNew', tags=["News"])
 async def GetNews(New: GetNewSchema):
     return ReturnNews.GetNew(New.NewID)
 
 
 @app.post('/News/AutoDetect', dependencies=[Depends(jwtBearer()), ], tags=["News"])
-async def GetNews(text: AutoDetectSchema):
-    return {'title': NLP.TopicModeling(text.Text), 'tags': NLP.ReturnTags(text.Text)}
+async def AutoDetect(text: AutoDetectSchema):
+    return {'Title': NLP.TopicModeling(text.Text), 'Tags': str(NLP.ReturnTags(text.Text)).replace('[','').replace(']','')}
 
 
-@app.get('/News/SetStatus', dependencies=[Depends(jwtBearer()), ], tags=["News", "Admin", "Editor"])
+@app.post('/News/SetStatus', dependencies=[Depends(jwtBearer()), ], tags=["News", "Admin", "Editor"])
 async def SetStatus(New: SetStatusSchema, token: str = Depends(jwtBearer())):
     ReturnNews.SetVerified(token, int(New.NewID), New.Visibility)
     return ReturnNews.SetVisibility(token, int(New.NewID), New.Visibility)
@@ -159,10 +163,11 @@ async def EditorStatus(token: str = Depends(jwtBearer())):
 async def EditorStatus(token: str = Depends(jwtBearer())):
     user = get_username_from_jwt(token)
     userID = user['userID']
+    
     return Editor.EditorStatus(userID)
 
 
-@app.get('/News/Check', dependencies=[Depends(jwtBearer()), ], tags=["Editor"])
+@app.post('/News/Check', dependencies=[Depends(jwtBearer()), ], tags=["Editor"])
 async def CheckNews(param: CheckNewsSchema, token: str = Depends(jwtBearer())):
     UserID = get_username_from_jwt(token)['userID']
     Visibility = param.Visibility
@@ -171,4 +176,4 @@ async def CheckNews(param: CheckNewsSchema, token: str = Depends(jwtBearer())):
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="65.21.93.30", port=8000)

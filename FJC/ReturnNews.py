@@ -17,14 +17,14 @@ EditorCLN = UserDB['EditorCollection']
 NewsCLN = NewsDB['NewsCollection']
 CreditCLN = CreditDB['CreditCollection']
 
-
+ip = ""#"65.21.93.30:8000/"
 def FirstPage():
     jsn = {}
     filter_query = {'Visibility': True}
     top_10_news = NewsCLN.find(filter_query).sort("Date", DESCENDING).limit(10)
     i = 0
     for new in top_10_news:
-        jsn[i] = {'title': new['Title'], 'subject': new['Subject'], 'date': new['Date'], 'picture': new['Picture'],
+        jsn[i] = {'newsID': new["NewsID"],'title': new['Title'], 'subject': new['Subject'], 'date': new['Date'], 'picture': ip + new['Picture'],
                   'text': new['Text']}
         i += 1
     return jsn
@@ -48,13 +48,13 @@ def search(query):
     results = NewsCLN.find(filter_query).sort('Date', DESCENDING).limit(5)
     i = 0
     for new in results:
-        jsn[i] = {'title': new['Title'], 'subject': new['Subject'], 'date': new['Date'], 'picture': new['Picture'],
+        jsn[i] = {'newsID': new["NewsID"],'title': new['Title'], 'subject': new['Subject'], 'date': new['Date'], 'picture': ip + new['Picture'],
                   'text': new['Text']}
         i += 1
     if jsn:
         return jsn
     else:
-        return {"msg": "متاسفانه چیری یافت نشد."}
+        return {"msg": "Not Found"}
 
 
 def ReturnNews(Token):
@@ -64,22 +64,32 @@ def ReturnNews(Token):
     jsn = {}
     i = 0
     if user['access'] == 'Admin':
-        results = NewsCLN.find()
+        results = NewsCLN.find().sort('Date', DESCENDING).limit(10)
         for new in results:
             status = NewsStatus(new)
             reporter = USRCLN.find_one({'userID': new['ReporterID']})
             reporter = reporter['name']
-            jsn[i] = {'title': new['Title'], 'reporter': reporter, 'subject': new['Subject'], 'date': new['Date'],
+            jsn[i] = {'newsID': new["NewsID"],'title': new['Title'], 'reporter': reporter, 'subject': new['Subject'], 'date': new['Date'],
                       'status': status}
             i += 1
         return jsn
     elif user['access'] == 'Editor':
-        results = NewsCLN.find({'EditorID': userID})
+        results = NewsCLN.find({'EditorID': userID}).sort('Date', DESCENDING).limit(10)
         for new in results:
             status = NewsStatus(new)
             reporter = USRCLN.find_one({'userID': new['ReporterID']})
             reporter = reporter['name']
-            jsn[i] = {'title': new['Title'], 'reporter': reporter, 'subject': new['Subject'], 'date': new['Date'],
+            jsn[i] = {'newsID': new["NewsID"],'title': new['Title'], 'reporter': reporter, 'subject': new['Subject'], 'date': new['Date'],
+                      'status': status}
+            i += 1
+        return jsn
+    elif user['access'] == 'Reporter':
+        results = NewsCLN.find({'ReporterID': userID}).sort('Date', DESCENDING).limit(10)
+        for new in results:
+            status = NewsStatus(new)
+            reporter = USRCLN.find_one({'userID': new['ReporterID']})
+            reporter = reporter['name']
+            jsn[i] = {'newsID': new["NewsID"],'title': new['Title'], 'reporter': reporter, 'subject': new['Subject'], 'date': new['Date'],
                       'status': status}
             i += 1
         return jsn
@@ -89,7 +99,7 @@ def ReturnNews(Token):
 
 
 def AddNew(Token, new: NewsSchema = Body(default=None)):
-    NewID = int(USRCLN.count_documents({})) + 1
+    NewID = int(NewsCLN.count_documents({})) + 1
     userID = get_username_from_jwt(Token)
     userID = userID['userID']
     Topic = NLP.TopicModeling(new.Text)
@@ -98,18 +108,21 @@ def AddNew(Token, new: NewsSchema = Body(default=None)):
     Topic = Topics[Topic]
     Tags = NLP.ReturnTags(new.Text)
     Editor = EditorCLN.find_one({'Title': Topic})
-    NewsCLN.insert_one({'NewsID': NewID, 'ReporterID': userID, 'EditorID': Editor["EditorID"], 'Date': datetime.now(),
+    NewsCLN.insert_one({'NewsID': NewID, 'ReporterID': userID, 'EditorID': Editor["UserID"], 'Date': datetime.now(),
                         'Subject': new.Subject, 'Text': new.Text, 'Title': Topic, 'Picture': new.PicPath, 'Tags': Tags,
                         'Verified': False, 'Visibility': False})
     return {"msg": "add new successful!!", "topic": Topic, "Tags": Tags}
 
+def DelNew(NewID):
+    new = NewsCLN.delete_one({"NewsID": NewID})
+    return {"msg":"successful"}
 
 def GetNew(NewID):
     new = NewsCLN.find_one({"NewsID": NewID})
     if new:
         return {'NewsID': new['NewsID'], 'ReporterID': new['ReporterID'], 'EditorID': new['EditorID'],
                 'Date': new['Date'],
-                'Subject': new['Subject'], 'Text': new['Text'], 'Title': new["Title"], 'Picture': new['Picture'],
+                'Subject': new['Subject'], 'Text': new['Text'], 'Title': new["Title"], 'Picture': ip + new['Picture'],
                 'Tags': new['Tags'], 'Verified': new['Verified'], 'Visibility': new['Visibility']}
     else:
         return {}
@@ -154,14 +167,17 @@ def NewsStatus(new):
 
 def CheckNews(UserID, Visibility):
     Result = []
-    News = NewsCLN.find({"$or": [{"EditorID": UserID}, {"ReporterID": UserID}], "Visibility": Visibility})
-
+    print(UserID)
+    News = NewsCLN.find({"$or": [{"EditorID": UserID}, {"ReporterID": UserID}], "Visibility": Visibility}).sort("Date", DESCENDING).limit(10)
+    user = USRCLN.find_one({"userID": UserID})
+    if user['access'] == 'Admin':
+        News = NewsCLN.find({"Visibility": Visibility}).sort("Date", DESCENDING).limit(10)
     for New in News:
         n = {
-            "NewsID": New['NewsID'], "ReporterID": New["ReporterID"], "EditorID": New["EditorID"], "Date": New['Date'],
-            "Subject": New["Subject"],
-            "Text": New['Text'], "Title": New['Title'], "Picture": New["Picture"], "Tags": New["Tags"],
-            "Verified": New["Verified"], "Visibility": New['Visibility']
+            "newsID": New['NewsID'], "reporter": New["ReporterID"], "editorID": New["EditorID"], "date": New['Date'],
+            "subject": New["Subject"],
+            "text": New['Text'], "title": New['Title'], "picture": ip + New["Picture"], "tags": New["Tags"],
+            "Verified": New["Verified"], "status": New['Visibility']
         }
         Result.append(n)
 
